@@ -18,7 +18,7 @@ import (
 
 type Configuration struct {
 	Port           int      `env:"PORT,default=4000"`
-	AllowedOrigins []string `env:"ALLOWED_ORIGINS,default=http://"`
+	AllowedOrigins []string `env:"ALLOWED_ORIGINS,default=http://localhost"`
 	RedisDSN       string   `env:"REDIS_DSN,default=redis://localhost:6379"`
 	UseRedis       bool     `env:"USE_REDIS,default=false"`
 }
@@ -70,7 +70,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedOrigins:   cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: false,
