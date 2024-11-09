@@ -53,6 +53,7 @@ func main() {
 			if err := persist(ctx, application, batch, index); err != nil {
 				panic(err)
 			}
+			batch = batch[:0]
 		}
 
 		if index%1000 == 0 {
@@ -81,7 +82,6 @@ func persist(ctx context.Context, app app.App, batch []string, indexOffset int) 
 			Score:  float64(indexOffset - (len(batch) - i)),
 		})
 	}
-	batch = batch[:0]
 	if err := app.RedisClient.ZAdd(ctx, "datasource:wikipedia", members...).Err(); err != nil {
 		return err
 	}
