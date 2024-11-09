@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
 	"knowledgeleaf/app"
 )
 
@@ -44,7 +42,7 @@ func main() {
 	batchSize := 1000
 	for scanner.Scan() {
 		title := strings.TrimSpace(scanner.Text())
-		if len(title) < 3 || strings.HasPrefix(title, "!") {
+		if len(title) > 30 || len(title) < 3 || strings.HasPrefix(title, "!") {
 			continue
 		}
 		batch = append(batch, title)
@@ -75,14 +73,11 @@ func persist(ctx context.Context, app app.App, batch []string, indexOffset int) 
 	if len(batch) == 0 {
 		return nil
 	}
-	members := make([]redis.Z, 0, len(batch))
-	for i, t := range batch {
-		members = append(members, redis.Z{
-			Member: t,
-			Score:  float64(indexOffset - (len(batch) - i)),
-		})
+	members := make([]any, 0, len(batch))
+	for _, t := range batch {
+		members = append(members, t)
 	}
-	if err := app.RedisClient.ZAdd(ctx, "datasource:wikipedia", members...).Err(); err != nil {
+	if err := app.RedisClient.SAdd(ctx, "datasource:wikipedia", members...).Err(); err != nil {
 		return err
 	}
 	return nil

@@ -53,19 +53,18 @@ func (b *RandomTriviaBackend) RandomTitle(ctx context.Context) (string, error) {
 
 	if b.titleCount == 0 {
 		// TODO: reuse key names between Loader and Fetcher
-		cmd := b.application.RedisClient.ZCard(ctx, "datasource:wikipedia")
+		cmd := b.application.RedisClient.SCard(ctx, "datasource:wikipedia")
 		if cmd.Err() != nil {
 			return "", cmd.Err()
 		}
 		b.titleCount = int(cmd.Val())
 		b.application.Logger.Info(fmt.Sprintf("found %d titles in Redis DB", b.titleCount))
 	}
-	index := int64(rand.Intn(b.titleCount))
-	titles, err := b.application.RedisClient.ZRange(ctx, "datasource:wikipedia", index, index).Result()
+	title, err := b.application.RedisClient.SRandMember(ctx, "datasource:wikipedia").Result()
 	if err != nil {
 		return "", err
 	}
-	return titles[0], nil
+	return title, nil
 }
 
 func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) ([]WikiSummary, error) {
