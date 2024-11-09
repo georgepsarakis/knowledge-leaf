@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"knowledgeleaf/app"
 	"knowledgeleaf/externalapi/wikipedia"
 )
 
@@ -33,8 +34,45 @@ var wikipediaArticleTitles = func() []string {
 	return titles
 }()
 
-func randomizeArticle(ctx context.Context) ([]WikiSummary, error) {
-	subj := wikipediaArticleTitles[rand.Intn(len(wikipediaArticleTitles))]
+type RandomTriviaBackend struct {
+	application app.App
+	titleCount  int
+}
+
+func NewRandomTriviaBackend(application app.App) *RandomTriviaBackend {
+	return &RandomTriviaBackend{application: application}
+}
+
+func (b *RandomTriviaBackend) RandomTitle(ctx context.Context) (string, error) {
+	if !b.application.Cfg.UseRedis {
+		if b.titleCount == 0 {
+			b.titleCount = len(wikipediaArticleTitles)
+		}
+		return wikipediaArticleTitles[rand.Intn(b.titleCount)], nil
+	}
+
+	if b.titleCount == 0 {
+		// TODO: reuse key names between Loader and Fetcher
+		cmd := b.application.RedisClient.ZCard(ctx, "datasource:wikipedia")
+		if cmd.Err() != nil {
+			return "", cmd.Err()
+		}
+		b.titleCount = int(cmd.Val())
+		b.application.Logger.Info(fmt.Sprintf("found %d titles in Redis DB", b.titleCount))
+	}
+	index := int64(rand.Intn(b.titleCount))
+	titles, err := b.application.RedisClient.ZRange(ctx, "datasource:wikipedia", index, index).Result()
+	if err != nil {
+		return "", err
+	}
+	return titles[0], nil
+}
+
+func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) ([]WikiSummary, error) {
+	subj, err := triviaBackend.RandomTitle(ctx)
+	if err != nil {
+		return nil, err
+	}
 	client := wikipedia.NewClient()
 	summary, err := client.GetSummary(ctx, subj)
 	if err != nil {

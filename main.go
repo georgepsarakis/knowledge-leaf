@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,17 +10,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/redis/go-redis/v9"
-	"github.com/sethvargo/go-envconfig"
 	"go.uber.org/zap"
-)
 
-type Configuration struct {
-	Port           int      `env:"PORT,default=4000"`
-	AllowedOrigins []string `env:"ALLOWED_ORIGINS,default=http://localhost"`
-	RedisDSN       string   `env:"REDIS_DSN,default=redis://localhost:6379"`
-	UseRedis       bool     `env:"USE_REDIS,default=false"`
-}
+	"knowledgeleaf/app"
+)
 
 type requestLogger struct {
 	middleware.LoggerInterface
@@ -32,36 +24,18 @@ func (rl requestLogger) Print(v ...any) {
 	rl.logger.Info("request completed", zap.Any("accessLog", v))
 }
 
-func newRedisClient(dsn string) *redis.Client {
-	opts, err := redis.ParseURL(dsn)
+func main() {
+	application, cleanup, err := app.New()
 	if err != nil {
 		panic(err)
 	}
+	defer cleanup()
 
-	redisClient := redis.NewClient(opts)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	if err := redisClient.Ping(ctx).Err(); err != nil {
-		panic(err)
-	}
-	defer cancel()
-	return redisClient
-}
-
-func main() {
-	cfg := Configuration{}
-	envconfig.MustProcess(context.Background(), &cfg)
-
-	if cfg.UseRedis {
-		_ = newRedisClient(cfg.RedisDSN)
-	}
-
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
 	r := chi.NewRouter()
 
 	middleware.DefaultLogger = middleware.RequestLogger(
 		&middleware.DefaultLogFormatter{
-			Logger:  requestLogger{logger: logger},
+			Logger:  requestLogger{logger: application.Logger},
 			NoColor: true,
 		},
 	)
@@ -70,7 +44,7 @@ func main() {
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   cfg.AllowedOrigins,
+		AllowedOrigins:   application.Cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: false,
@@ -88,11 +62,19 @@ func main() {
 	r.Use(middleware.AllowContentType("application/json"))
 	r.Use(middleware.StripSlashes)
 	r.Use(middleware.CleanPath)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := app.WithLogger(r.Context(), application.Logger)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	})
+
+	triviaBackend := NewRandomTriviaBackend(application)
 
 	// Routes
 	r.Get("/trivia/random", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-
+		logger := app.LoggerFromContext(ctx)
 		loggerFields := []zap.Field{
 			zap.String("requestID", middleware.GetReqID(ctx)),
 			zap.String("httpMethod", http.MethodGet),
@@ -101,7 +83,7 @@ func main() {
 		logger = logger.With(loggerFields...)
 
 		// Search for a Wikipedia article
-		summaries, err := randomizeArticle(ctx)
+		summaries, err := randomizeArticle(ctx, triviaBackend)
 		if err != nil {
 			logger.Error(err.Error(), zap.Error(err))
 			http.Error(w, "request failed", http.StatusInternalServerError)
@@ -124,8 +106,8 @@ func main() {
 		}
 	})
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Port), r); err != nil {
-		logger.Error(err.Error())
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", application.Cfg.Port), r); err != nil {
+		application.Logger.Error(err.Error())
 		os.Exit(1)
 	}
 }
