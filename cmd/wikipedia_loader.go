@@ -23,7 +23,7 @@ func main() {
 	}
 	defer cleanup()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wikipediaDumpURL, nil)
 	if err != nil {
@@ -41,6 +41,7 @@ func main() {
 	scanner := bufio.NewScanner(gz)
 	index := 0
 	var batch []string
+	batchSize := 1000
 	for scanner.Scan() {
 		title := strings.TrimSpace(scanner.Text())
 		if len(title) < 3 || strings.HasPrefix(title, "!") {
@@ -48,7 +49,7 @@ func main() {
 		}
 		batch = append(batch, title)
 		index++
-		if len(batch) >= 50 {
+		if len(batch) >= batchSize {
 			if err := persist(ctx, application, batch, index); err != nil {
 				panic(err)
 			}
