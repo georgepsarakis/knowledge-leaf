@@ -105,6 +105,10 @@ func main() {
 			return
 		}
 	})
+	r.Get("/trivia/stats", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: return total database size count & views
+
+	})
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", application.Cfg.Port), r); err != nil {
 		application.Logger.Error(err.Error())

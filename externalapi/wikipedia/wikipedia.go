@@ -3,6 +3,8 @@ package wikipedia
 import (
 	"context"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/georgepsarakis/go-httpclient"
@@ -62,6 +64,16 @@ const userAgent = "knowledge-leaf-client/1.0"
 
 // URL endpoints
 const restV1SummaryEndpoint = "https://en.wikipedia.org/api/rest_v1/page/summary"
+const titleCategoriesEndpoint = "https://en.wikipedia.org/w/api.php"
+
+var titleCategoriesBaseParameters = map[string]string{
+	"format":  "json",
+	"action":  "query",
+	"prop":    "categories",
+	"clprop":  "timestamp",
+	"clshow":  "!hidden",
+	"cllimit": "5",
+}
 
 type Client struct {
 	httpClient *httpclient.Client
@@ -78,8 +90,8 @@ func NewClient() *Client {
 	}
 }
 
-func (w Client) GetSummary(ctx context.Context, title string) (RestV1SummaryResponse, error) {
-	resp, err := w.httpClient.Get(ctx, w.summaryURL(title))
+func (c Client) GetSummary(ctx context.Context, title string) (RestV1SummaryResponse, error) {
+	resp, err := c.httpClient.Get(ctx, c.summaryURL(title))
 	if err != nil {
 		return RestV1SummaryResponse{}, err
 	}
@@ -93,4 +105,40 @@ func (w Client) GetSummary(ctx context.Context, title string) (RestV1SummaryResp
 func (c Client) summaryURL(title string) string {
 	p, _ := url.JoinPath(restV1SummaryEndpoint, title)
 	return p
+}
+
+func (c Client) Categories(ctx context.Context, title string) ([]string, error) {
+	resp, err := c.httpClient.Get(ctx, titleCategoriesEndpoint, httpclient.WithQueryParameters(map[string]string{
+		"titles": title,
+	}), httpclient.WithQueryParameters(titleCategoriesBaseParameters))
+	if err != nil {
+		return nil, err
+	}
+	var categoryResponse TitleCategoriesResponse
+	if err := httpclient.DeserializeJSON(resp, &categoryResponse); err != nil {
+		return nil, err
+	}
+	var categories []string
+	for _, page := range categoryResponse.Query.Pages {
+		for _, category := range page.Categories {
+			categories = append(categories, strings.TrimPrefix(category.Title, "Category:"))
+		}
+	}
+	slices.Sort(categories)
+	return categories, nil
+}
+
+type TitleCategoriesResponse struct {
+	Query struct {
+		Pages map[string]struct {
+			Pageid     int    `json:"pageid"`
+			Ns         int    `json:"ns"`
+			Title      string `json:"title"`
+			Categories []struct {
+				Ns        int       `json:"ns"`
+				Title     string    `json:"title"`
+				Timestamp time.Time `json:"timestamp"`
+			} `json:"categories"`
+		} `json:"pages"`
+	} `json:"query"`
 }

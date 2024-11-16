@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math/rand"
 
+	"golang.org/x/sync/errgroup"
+
 	"knowledgeleaf/app"
 	"knowledgeleaf/externalapi/wikipedia"
 )
@@ -73,25 +75,44 @@ func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) (
 		return nil, err
 	}
 	client := wikipedia.NewClient()
-	summary, err := client.GetSummary(ctx, subj)
-	if err != nil {
+
+	group, ctx := errgroup.WithContext(ctx)
+	var (
+		summaryResp wikipedia.RestV1SummaryResponse
+		categories  []string
+	)
+	group.Go(func() error {
+		summary, err := client.GetSummary(ctx, subj)
+		if err != nil {
+			return err
+		}
+		summaryResp = summary
+		return nil
+	})
+	group.Go(func() error {
+		var err error
+		categories, err = client.Categories(ctx, subj)
+		return err
+	})
+	if err := group.Wait(); err != nil {
 		return nil, err
 	}
 
 	var summaries []WikiSummary
 	summaries = append(summaries,
 		WikiSummary{
-			Title:   summary.Title,
-			Summary: summary.Extract,
+			Title:   summaryResp.Title,
+			Summary: summaryResp.Extract,
 			Metadata: WikiSummaryMetadata{
-				Description: summary.Description,
-				URL:         summary.ContentUrls.Desktop.Page,
+				Description: summaryResp.Description,
+				URL:         summaryResp.ContentUrls.Desktop.Page,
 				Image: WikiSummaryImage{
-					URL:    summary.Thumbnail.Source,
-					Width:  summary.Thumbnail.Width,
-					Height: summary.Thumbnail.Height,
+					URL:    summaryResp.Thumbnail.Source,
+					Width:  summaryResp.Thumbnail.Width,
+					Height: summaryResp.Thumbnail.Height,
 				},
 			},
+			Categories: categories,
 		},
 	)
 	return summaries, nil

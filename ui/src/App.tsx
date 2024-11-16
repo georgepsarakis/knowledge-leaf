@@ -1,17 +1,17 @@
 import React from 'react';
 import './App.css';
 import {
-    Badge,
+    Badge, Box,
     Center,
     Container,
-    Heading, HStack,
+    Flex,
+    Heading,
     Image,
     Link,
     List,
     Separator,
     Spinner,
-    Stack
-} from "@chakra-ui/react"
+} from "@chakra-ui/react";
 import {Button} from "@chakra-ui/react";
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react"
 import { Text } from "@chakra-ui/react"
@@ -20,6 +20,8 @@ import {HiAcademicCap} from "react-icons/hi2";
 import {BiBarChart} from "react-icons/bi";
 
 import {parse} from 'tldts';
+import {Tag} from "./components/ui/tag";
+
 
 type TriviaImage = {
     url: string;
@@ -38,6 +40,7 @@ type Trivia = {
     summary: string;
     type: string;
     metadata: TriviaMetadata;
+    categories: string[];
 }
 
 const ArticleTypeDisambiguation = 'disambiguation';
@@ -57,7 +60,11 @@ function getDomain() {
     return 'https://api.' + tld.domain;
 }
 
-function DisplayRandomTrivia() {
+interface DisplayRandomTriviaProps {
+    timeline: string[];
+}
+
+function DisplayRandomTrivia({timeline}: DisplayRandomTriviaProps) {
     const [data, setData] = useState<TriviaResponse>({
         results: []
     })
@@ -66,11 +73,13 @@ function DisplayRandomTrivia() {
     useEffect(() => {
         if (!ignore) {
             ignore = true;
+            // TODO: prefetch next request
             fetch(getDomain()+'/trivia/random').then(response => {
                 return response.json()
             }).then(triviaData => {
                 setData(triviaData);
                 setIsLoading(false);
+                timeline.push(triviaData.results[0].title);
             }).catch((error) => {
                 console.log(error);
             });
@@ -81,16 +90,29 @@ function DisplayRandomTrivia() {
     }, []);
 
     return (
-        <Container transition={"background 0.2s ease-in-out"}>
-            { isLoading ? <Center><Spinner/></Center> :
+        <Container transition={"background 1s ease-in-out"} marginBottom={2}>
+            { isLoading ?
+                <Center>
+                    <Box position="relative" aria-busy="true" userSelect="none">
+                        <Container maxW={"3xl"} height={"lg"} animationName="fade-in" animationDuration="slow">
+                                <Center>
+                                    <Box pos="absolute" inset="0" bg="bg/80">
+                                        <Center h={"full"}>
+                                            <Spinner size={"xl"} color={"teal.500"}/>
+                                        </Center>
+                                    </Box>
+                                </Center>
+                        </Container>
+                    </Box>
+                </Center> :
                 data.results.map((trivia) => (
-                    <Container fluid key={trivia.summary}>
+                    <Container fluid key={trivia.summary} animationName="fade-in" animationDuration="slow">
                         <Center marginTop="5" marginBottom="10">
                             {trivia.metadata.image.url ?
                                 <Image src={trivia.metadata.image.url}
                                        width={trivia.metadata.image.width}
                                        height={trivia.metadata.image.height}
-                                       transition={"0.8s linear"} /> :
+                                       transition={"0.5s linear"} /> :
                                 <Image src={wikiLogo}/>}
                         </Center>
                         <Heading size={"lg"}>{trivia.title}
@@ -110,8 +132,24 @@ function DisplayRandomTrivia() {
                         <Separator marginTop={5} marginBottom={5} />
 
                         <Link color={"teal.500"} href={trivia.metadata.url} target={"_blank"}>
-                            <Text fontStyle="italic">{trivia.title}{trivia.metadata.description ? ' - ' + trivia.metadata.description : ''}</Text>
+                            <Text fontWeight="semibold">{trivia.title}{trivia.metadata.description ? ' - ' + trivia.metadata.description : ''}</Text>
                         </Link>
+                        {
+                            trivia.categories &&
+                            <div>
+                                <Separator marginTop={5} marginBottom={5} />
+                                {
+                                    trivia.categories.map((item) => {
+                                        return <Tag marginLeft={2} marginBottom={2} key={item} fontStyle={"italic"}
+                                                    size={"lg"} colorPalette={"orange"}>
+                                            <Link href={"https://en.wikipedia.org/wiki/Category:"+encodeURIComponent(item)} target={"_blank"}>
+                                                {item}
+                                            </Link>
+                                        </Tag>
+                                    })
+                                }
+                            </div>
+                        }
                     </Container>
                 ))
             }
@@ -119,34 +157,51 @@ function DisplayRandomTrivia() {
     );
 }
 
+// TODO: add footer (About links etc)
 function App() {
-    const [triviaID, setTriviaID] = useState<number>(0)
+    const [triviaID, setTriviaID] = useState<number>(0);
+    const [triviaComponents, setTriviaComponents] = useState<React.JSX.Element[]>([]);
+    const [activeComponent, setActiveComponent] = useState<number>(0);
+    const [timelineComponents, setTimelineComponents] = useState<string[]>([]);
+
+    const newRandomTrivia = () => {
+        setTriviaComponents([...triviaComponents, <DisplayRandomTrivia key={triviaID} timeline={timelineComponents} />]);
+    };
     return <ChakraProvider value={defaultSystem}>
         <Center>
             <Container marginTop={10} maxW={"3xl"}>
-                <Stack>
-                    <Button backgroundColor="teal"
-                            onClick={() => { setTriviaID(triviaID => triviaID + 1) }}>
-                        <HiAcademicCap/>
-                        Random Trivia
-                    </Button>
-                    { (triviaID > 0) && <DisplayRandomTrivia key={triviaID} /> }
-                    { triviaID > 0 &&
-                        <Container marginTop={5}>
-                        <Separator marginTop={5} marginBottom={10}/>
-                            <HStack>
-                                <Text textStyle="xl">Today's Reading</Text>
-                                <Badge variant="solid" colorPalette="teal">
-                                    <BiBarChart size={20} />
-                                    <Text textStyle="xl"><b>{triviaID}</b></Text>
-                                </Badge>
-                            </HStack>
-                        </Container>
-                    }
-                </Stack>
+                { triviaID > 0 &&
+                    <Container marginTop={2} fluid>
+                        <Center>
+                            <Flex gap={4}>
+                            <Text textStyle="xl">Today's Reading</Text>
+                            <Badge variant="solid" colorPalette="teal">
+                                <BiBarChart size={20} />
+                                <Text textStyle="xl"><b>{triviaID}</b></Text>
+                            </Badge>
+                            </Flex>
+                        </Center>
+                    </Container>
+                }
+                { (triviaID > 0) && triviaComponents.find((e) => {
+                    return e.key == activeComponent.toString()}) }
+                <Center>
+                    <Container marginTop={2} maxW={"3xl"}>
+                        <Center>
+                            <Button backgroundColor="teal" size={"2xl"} w={"100%"}
+                                    onClick={() => {
+                                        setTriviaID(triviaID => triviaID + 1);
+                                        newRandomTrivia();
+                                        setActiveComponent(triviaID);
+                                    }}>
+                                <HiAcademicCap/>
+                                Random Trivia
+                            </Button>
+                        </Center>
+                    </Container>
+                </Center>
             </Container>
         </Center>
-
     </ChakraProvider>;
 }
 

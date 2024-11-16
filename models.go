@@ -13,10 +13,11 @@ type WikiSummaryMetadata struct {
 }
 
 type WikiSummary struct {
-	Title    string              `json:"title"`
-	Summary  string              `json:"summary"`
-	Type     string              `json:"type"`
-	Metadata WikiSummaryMetadata `json:"metadata"`
+	Title      string              `json:"title"`
+	Summary    string              `json:"summary"`
+	Type       string              `json:"type"`
+	Categories []string            `json:"categories"`
+	Metadata   WikiSummaryMetadata `json:"metadata"`
 }
 
 type RandomTriviaResponse struct {
