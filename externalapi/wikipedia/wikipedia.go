@@ -2,6 +2,7 @@ package wikipedia
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"slices"
 	"strings"
@@ -65,6 +66,9 @@ const userAgent = "knowledge-leaf-client/1.0"
 // URL endpoints
 const restV1SummaryEndpoint = "https://en.wikipedia.org/api/rest_v1/page/summary"
 const titleCategoriesEndpoint = "https://en.wikipedia.org/w/api.php"
+
+// https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/12/01
+const restV1OnThisDayEndpoint = "https://en.wikipedia.org/api/rest_v1/feed/onthisday/%s/%s/%s"
 
 var titleCategoriesBaseParameters = map[string]string{
 	"format":  "json",
@@ -141,4 +145,53 @@ type TitleCategoriesResponse struct {
 			} `json:"categories"`
 		} `json:"pages"`
 	} `json:"query"`
+}
+
+func (c Client) OnThisDay(ctx context.Context) (RestV1EventsOnThisDayResponse, error) {
+	now := time.Now().UTC()
+	resp, err := c.httpClient.Get(ctx, fmt.Sprintf(restV1OnThisDayEndpoint, "events", now.Format("01"), now.Format("02")))
+	if err != nil {
+		return RestV1EventsOnThisDayResponse{}, err
+	}
+	var v RestV1EventsOnThisDayResponse
+	if err := httpclient.DeserializeJSON(resp, &v); err != nil {
+		return RestV1EventsOnThisDayResponse{}, err
+	}
+	return v, nil
+}
+
+type RestV1EventsOnThisDayResponse struct {
+	Events []struct {
+		Text  string `json:"text"`
+		Pages []struct {
+			Title  string `json:"title"`
+			Titles struct {
+				Canonical  string `json:"canonical"`
+				Normalized string `json:"normalized"`
+				Display    string `json:"display"`
+			} `json:"titles"`
+			Pageid      int    `json:"pageid"`
+			Extract     string `json:"extract"`
+			ExtractHtml string `json:"extract_html"`
+			Thumbnail   struct {
+				Source string `json:"source"`
+				Width  int    `json:"width"`
+				Height int    `json:"height"`
+			} `json:"thumbnail"`
+			Originalimage struct {
+				Source string `json:"source"`
+				Width  int    `json:"width"`
+				Height int    `json:"height"`
+			} `json:"originalimage"`
+			Lang        string    `json:"lang"`
+			Dir         string    `json:"dir"`
+			Timestamp   time.Time `json:"timestamp"`
+			Description string    `json:"description"`
+			ContentUrls struct {
+				Desktop struct {
+					Page string `json:"page"`
+				}
+			} `json:"content_urls"`
+		} `json:"pages"`
+	} `json:"events"`
 }

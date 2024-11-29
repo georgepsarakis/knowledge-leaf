@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"knowledgeleaf/app"
+	"knowledgeleaf/externalapi/wikipedia"
 )
 
 type requestLogger struct {
@@ -107,7 +108,56 @@ func main() {
 	})
 	r.Get("/trivia/stats", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: return total database size count & views
+	})
+	r.Get("/on-this-day/events", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := app.LoggerFromContext(ctx)
+		loggerFields := []zap.Field{
+			zap.String("requestID", middleware.GetReqID(ctx)),
+			zap.String("httpMethod", http.MethodGet),
+			zap.String("operation", "on-this-day/events"),
+		}
+		logger = logger.With(loggerFields...)
 
+		client := wikipedia.NewClient()
+		events, err := client.OnThisDay(ctx)
+		if err != nil {
+			logger.Error(err.Error(), zap.Error(err))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+		var resp EventsOnThisDayResponse
+		for _, ev := range events.Events {
+			for _, page := range ev.Pages {
+				resp.Titles = append(resp.Titles, OnThisDayEvent{
+					Title:      ev.Text,
+					ShortTitle: page.Titles.Normalized,
+					Image: Image{
+						URL:    page.Thumbnail.Source,
+						Width:  page.Thumbnail.Width,
+						Height: page.Thumbnail.Height,
+					},
+					Description: page.Description,
+					Extract:     page.Extract,
+					URL:         page.ContentUrls.Desktop.Page,
+				})
+			}
+		}
+		b, err := json.Marshal(resp)
+		if err != nil {
+			logger.Error(err.Error(),
+				zap.Error(err),
+				zap.String("operationDetail", "jsonMarshal"))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+		if _, err := w.Write(b); err != nil {
+			logger.Error(err.Error(),
+				zap.Error(err),
+				zap.String("operationDetail", "responseWrite"))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
 	})
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", application.Cfg.Port), r); err != nil {

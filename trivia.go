@@ -106,7 +106,7 @@ func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) (
 			Metadata: WikiSummaryMetadata{
 				Description: summaryResp.Description,
 				URL:         summaryResp.ContentUrls.Desktop.Page,
-				Image: WikiSummaryImage{
+				Image: Image{
 					URL:    summaryResp.Thumbnail.Source,
 					Width:  summaryResp.Thumbnail.Width,
 					Height: summaryResp.Thumbnail.Height,

@@ -1,15 +1,15 @@
 package main
 
-type WikiSummaryImage struct {
+type Image struct {
 	URL    string `json:"url"`
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
 }
 
 type WikiSummaryMetadata struct {
-	Description string           `json:"description"`
-	URL         string           `json:"url"`
-	Image       WikiSummaryImage `json:"image"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+	Image       Image  `json:"image"`
 }
 
 type WikiSummary struct {
@@ -22,4 +22,17 @@ type WikiSummary struct {
 
 type RandomTriviaResponse struct {
 	Results []WikiSummary `json:"results"`
+}
+
+type OnThisDayEvent struct {
+	Title       string `json:"title"`
+	ShortTitle  string `json:"short_title"`
+	Description string `json:"description"`
+	Image       Image  `json:"image"`
+	Extract     string `json:"extract"`
+	URL         string `json:"url"`
+}
+
+type EventsOnThisDayResponse struct {
+	Titles []OnThisDayEvent `json:"titles"`
 }
