@@ -10,6 +10,8 @@ import {getDomain} from "./backend/backend";
 import {Navigation} from 'swiper/modules';
 import 'swiper/css/navigation';
 import {AiOutlineArrowLeft, AiOutlineArrowRight} from "react-icons/ai";
+import Layout from "./Layout";
+import {LuExternalLink} from "react-icons/lu";
 
 
 
@@ -53,15 +55,16 @@ function EventsOnThisDay() {
         }
     }, []);
     return <ChakraProvider value={defaultSystem}>
+        <Layout/>
         <Center>
-                <Container marginTop={10} maxW={"4xl"}>
+                <Container marginTop={5} maxW={"4xl"}>
                     <Box>
                         <Float placement={"middle-start"}>
                             <Button backgroundColor="teal" className={"kl-swiper-button-prev"} size={"md"}><AiOutlineArrowLeft/></Button>
                         </Float>
                     </Box>
                     <Center>
-                        <Heading size={"2xl"} color={"teal.500"}>On This Day</Heading>
+                        <Heading size={"2xl"} color={"gray.500"}>On This Day</Heading>
                     </Center>
                             {
                                 isLoading ?
@@ -126,8 +129,9 @@ function Event({ title, extract, image, description, short_title, url }: EventPr
              <Text marginTop={5} marginBottom={5}>{extract}</Text>
              <Link target={"_blank"} href={url}>
                 <Text color={"teal"}>{short_title} - {description}</Text>
+                 <LuExternalLink />
              </Link>
-           </Container>
+           </Container>;
 }
 
 export default EventsOnThisDay;

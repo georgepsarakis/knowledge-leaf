@@ -21,6 +21,9 @@ import {BiBarChart} from "react-icons/bi";
 
 import {parse} from 'tldts';
 import {Tag} from "./components/ui/tag";
+import Layout from "./Layout";
+import {getDomain} from "./backend/backend";
+import {LuExternalLink} from "react-icons/lu";
 
 
 type TriviaImage = {
@@ -51,20 +54,7 @@ type TriviaResponse = {
 
 const wikiLogo = "https://upload.wikimedia.org/wikipedia/commons/6/63/Wikipedia-logo.png";
 
-function getDomain() {
-    const domain = window.location.hostname;
-    if (domain == "localhost") {
-        return 'http://' + domain + ":4000";
-    }
-    const tld = parse(window.location.hostname)
-    return 'https://api.' + tld.domain;
-}
-
-interface DisplayRandomTriviaProps {
-    timeline: string[];
-}
-
-function DisplayRandomTrivia({timeline}: DisplayRandomTriviaProps) {
+function DisplayRandomTrivia() {
     const [data, setData] = useState<TriviaResponse>({
         results: []
     })
@@ -79,7 +69,6 @@ function DisplayRandomTrivia({timeline}: DisplayRandomTriviaProps) {
             }).then(triviaData => {
                 setData(triviaData);
                 setIsLoading(false);
-                timeline.push(triviaData.results[0].title);
             }).catch((error) => {
                 console.log(error);
             });
@@ -133,6 +122,7 @@ function DisplayRandomTrivia({timeline}: DisplayRandomTriviaProps) {
 
                         <Link color={"teal.500"} href={trivia.metadata.url} target={"_blank"}>
                             <Text fontWeight="semibold">{trivia.title}{trivia.metadata.description ? ' - ' + trivia.metadata.description : ''}</Text>
+                            <LuExternalLink />
                         </Link>
                         {
                             trivia.categories &&
@@ -159,17 +149,15 @@ function DisplayRandomTrivia({timeline}: DisplayRandomTriviaProps) {
 
 // TODO: add footer (About links etc)
 function App() {
-    const [triviaID, setTriviaID] = useState<number>(0);
-    const [triviaComponents, setTriviaComponents] = useState<React.JSX.Element[]>([]);
-    const [activeComponent, setActiveComponent] = useState<number>(0);
-    const [timelineComponents, setTimelineComponents] = useState<string[]>([]);
+    const [triviaID, setTriviaID] = useState<number>(1);
 
     const newRandomTrivia = () => {
-        setTriviaComponents([...triviaComponents, <DisplayRandomTrivia key={triviaID} timeline={timelineComponents} />]);
+        return <DisplayRandomTrivia key={triviaID} />;
     };
     return <ChakraProvider value={defaultSystem}>
+        <Layout/>
         <Center>
-            <Container marginTop={10} maxW={"3xl"}>
+            <Container maxW={"3xl"}>
                 { triviaID > 0 &&
                     <Container marginTop={2} fluid>
                         <Center>
@@ -183,16 +171,13 @@ function App() {
                         </Center>
                     </Container>
                 }
-                { (triviaID > 0) && triviaComponents.find((e) => {
-                    return e.key == activeComponent.toString()}) }
+                { newRandomTrivia() }
                 <Center>
                     <Container marginTop={2} maxW={"3xl"}>
                         <Center>
                             <Button backgroundColor="teal" size={"2xl"} w={"100%"}
                                     onClick={() => {
                                         setTriviaID(triviaID => triviaID + 1);
-                                        newRandomTrivia();
-                                        setActiveComponent(triviaID);
                                     }}>
                                 <HiAcademicCap/>
                                 Random Trivia
