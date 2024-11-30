@@ -2,7 +2,9 @@ package wikipedia
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -70,6 +72,8 @@ const titleCategoriesEndpoint = "https://en.wikipedia.org/w/api.php"
 // https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/12/01
 const restV1OnThisDayEndpoint = "https://en.wikipedia.org/api/rest_v1/feed/onthisday/%s/%s/%s"
 
+var ErrNotFound = errors.New("not found")
+
 var titleCategoriesBaseParameters = map[string]string{
 	"format":  "json",
 	"action":  "query",
@@ -99,6 +103,13 @@ func (c Client) GetSummary(ctx context.Context, title string) (RestV1SummaryResp
 	if err != nil {
 		return RestV1SummaryResponse{}, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return RestV1SummaryResponse{}, ErrNotFound
+		}
+		return RestV1SummaryResponse{}, errors.New(resp.Status)
+	}
+
 	summaryResponse := RestV1SummaryResponse{}
 	if err := httpclient.DeserializeJSON(resp, &summaryResponse); err != nil {
 		return RestV1SummaryResponse{}, err

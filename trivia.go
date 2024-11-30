@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 
@@ -69,33 +70,40 @@ func (b *RandomTriviaBackend) RandomTitle(ctx context.Context) (string, error) {
 	return title, nil
 }
 
-func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) ([]WikiSummary, error) {
-	subj, err := triviaBackend.RandomTitle(ctx)
-	if err != nil {
-		return nil, err
-	}
-	client := wikipedia.NewClient()
+const maxTries = 2
 
-	group, ctx := errgroup.WithContext(ctx)
+func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) ([]WikiSummary, error) {
 	var (
 		summaryResp wikipedia.RestV1SummaryResponse
 		categories  []string
 	)
-	group.Go(func() error {
-		summary, err := client.GetSummary(ctx, subj)
+	for iter := 0; iter < maxTries; iter++ {
+		subj, err := triviaBackend.RandomTitle(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		summaryResp = summary
-		return nil
-	})
-	group.Go(func() error {
-		var err error
-		categories, err = client.Categories(ctx, subj)
-		return err
-	})
-	if err := group.Wait(); err != nil {
-		return nil, err
+		client := wikipedia.NewClient()
+
+		group, ctx := errgroup.WithContext(ctx)
+		group.Go(func() error {
+			summary, err := client.GetSummary(ctx, subj)
+			if err != nil {
+				return err
+			}
+			summaryResp = summary
+			return nil
+		})
+		group.Go(func() error {
+			var err error
+			categories, err = client.Categories(ctx, subj)
+			return err
+		})
+		if err := group.Wait(); err != nil {
+			if errors.Is(err, wikipedia.ErrNotFound) && iter < maxTries-1 {
+				continue
+			}
+			return nil, err
+		}
 	}
 
 	var summaries []WikiSummary
