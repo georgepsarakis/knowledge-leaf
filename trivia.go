@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
 	"knowledgeleaf/app"
@@ -100,10 +101,13 @@ func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) (
 		})
 		if err := group.Wait(); err != nil {
 			if errors.Is(err, wikipedia.ErrNotFound) && iter < maxTries-1 {
+				logger := app.LoggerFromContext(ctx)
+				logger.Info("page not found - retrying", zap.String("title", subj))
 				continue
 			}
 			return nil, err
 		}
+		break
 	}
 
 	var summaries []WikiSummary
