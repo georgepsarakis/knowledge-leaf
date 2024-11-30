@@ -1,6 +1,6 @@
 import {
     Center, ChakraProvider, Container, defaultSystem, Image,
-    Heading, Spinner, Text, Box, Button, HStack, Link, Float
+    Heading, Spinner, Text, Box, Button, HStack, Link, Float, ListRoot, ListItem
 } from "@chakra-ui/react";
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
@@ -28,6 +28,12 @@ type OnThisDayEvent = {
     extract: string;
     image: Image;
     url: string;
+    references: OnThisDayEventReference[];
+}
+
+type OnThisDayEventReference = {
+    url: string;
+    title: string;
 }
 
 type OnThisDayEventsResponse = {
@@ -92,6 +98,7 @@ function EventsOnThisDay() {
                                                         short_title={t.short_title}
                                                         description={t.description}
                                                         url={t.url}
+                                                        references={t.references}
                                                     />
                                                     </Box>
                                                 </SwiperSlide>
@@ -115,9 +122,10 @@ type EventProps = {
     short_title: string;
     description: string;
     url: string;
+    references: OnThisDayEventReference[];
 }
 
-function Event({ title, extract, image, description, short_title, url }: EventProps) {
+function Event({ title, extract, image, description, short_title, url, references }: EventProps) {
     return <Container maxW={"2xl"}>
              <Heading size={"lg"} marginBottom={5}>{title}</Heading>
              <Center>
@@ -129,9 +137,32 @@ function Event({ title, extract, image, description, short_title, url }: EventPr
              <Text marginTop={5} marginBottom={5}>{extract}</Text>
              <Link target={"_blank"} href={url}>
                 <Text color={"teal"}>{short_title} - {description}</Text>
-                 <LuExternalLink />
+                 <LuExternalLink color={"teal"}/>
              </Link>
+             <RenderReferences items={references}/>
            </Container>;
+}
+
+type ReferencesProps = {
+    items: OnThisDayEventReference[];
+}
+function RenderReferences({ items }: ReferencesProps) {
+    if (items.length === 0) {
+        return null;
+    }
+
+    return <Box marginTop={2}>
+        <Heading size={"md"} marginBottom={2}>References</Heading>
+        <ListRoot>
+            {items.map((ref) =>
+                <ListItem>
+                    <Link target={"_blank"} href={ref.url}>
+                        <Text color={"teal"}>{ref.title}</Text><LuExternalLink color={"teal"}/>
+                    </Link>
+                </ListItem>
+            )}
+        </ListRoot>
+    </Box>
 }
 
 export default EventsOnThisDay;

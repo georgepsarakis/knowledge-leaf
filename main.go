@@ -128,20 +128,29 @@ func main() {
 		}
 		var resp EventsOnThisDayResponse
 		for _, ev := range events.Events {
-			for _, page := range ev.Pages {
-				resp.Titles = append(resp.Titles, OnThisDayEvent{
-					Title:      ev.Text,
-					ShortTitle: page.Titles.Normalized,
-					Image: Image{
-						URL:    page.Thumbnail.Source,
-						Width:  page.Thumbnail.Width,
-						Height: page.Thumbnail.Height,
-					},
-					Description: page.Description,
-					Extract:     page.Extract,
-					URL:         page.ContentUrls.Desktop.Page,
-				})
+			mainPage := ev.Pages[0]
+			var references []OnThisDayEventReference
+			if len(ev.Pages) > 1 {
+				for _, p := range ev.Pages[1:] {
+					references = append(references, OnThisDayEventReference{
+						Title: p.Title,
+						URL:   p.ContentUrls.Desktop.Page,
+					})
+				}
 			}
+			resp.Titles = append(resp.Titles, OnThisDayEvent{
+				Title:      ev.Text,
+				ShortTitle: mainPage.Titles.Normalized,
+				Image: Image{
+					URL:    mainPage.Thumbnail.Source,
+					Width:  mainPage.Thumbnail.Width,
+					Height: mainPage.Thumbnail.Height,
+				},
+				Description: mainPage.Description,
+				Extract:     mainPage.Extract,
+				URL:         mainPage.ContentUrls.Desktop.Page,
+				References:  references,
+			})
 		}
 		b, err := json.Marshal(resp)
 		if err != nil {

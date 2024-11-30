@@ -25,12 +25,18 @@ type RandomTriviaResponse struct {
 }
 
 type OnThisDayEvent struct {
-	Title       string `json:"title"`
-	ShortTitle  string `json:"short_title"`
-	Description string `json:"description"`
-	Image       Image  `json:"image"`
-	Extract     string `json:"extract"`
-	URL         string `json:"url"`
+	Title       string                    `json:"title"`
+	ShortTitle  string                    `json:"short_title"`
+	Description string                    `json:"description"`
+	Image       Image                     `json:"image"`
+	Extract     string                    `json:"extract"`
+	URL         string                    `json:"url"`
+	References  []OnThisDayEventReference `json:"references"`
+}
+
+type OnThisDayEventReference struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 type EventsOnThisDayResponse struct {
