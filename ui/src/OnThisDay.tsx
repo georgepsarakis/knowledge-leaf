@@ -1,6 +1,6 @@
 import {
     Center, ChakraProvider, Container, defaultSystem, Image,
-    Heading, Spinner, Text, Box, Button, HStack, Link, Float, ListRoot, ListItem
+    Heading, Spinner, Text, Box, Button, Link, Float, ListRoot, ListItem
 } from "@chakra-ui/react";
 import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
@@ -12,8 +12,6 @@ import 'swiper/css/navigation';
 import {AiOutlineArrowLeft, AiOutlineArrowRight} from "react-icons/ai";
 import Layout from "./Layout";
 import {LuExternalLink} from "react-icons/lu";
-
-
 
 type Image = {
     url: string;
@@ -147,7 +145,7 @@ type ReferencesProps = {
     items: OnThisDayEventReference[];
 }
 function RenderReferences({ items }: ReferencesProps) {
-    if (items.length === 0) {
+    if (items === null || items.length === 0) {
         return null;
     }
 
