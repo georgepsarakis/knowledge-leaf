@@ -174,6 +174,7 @@ func (c Client) OnThisDay(ctx context.Context) (RestV1EventsOnThisDayResponse, e
 type RestV1EventsOnThisDayResponse struct {
 	Events []struct {
 		Text  string `json:"text"`
+		Year  int    `json:"year"`
 		Pages []struct {
 			Title  string `json:"title"`
 			Titles struct {

@@ -109,6 +109,7 @@ func main() {
 	r.Get("/trivia/stats", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: return total database size count & views
 	})
+	// TODO: introduce permalinks -> /on-this-day/event/<YYYY-MM-DD>/<TITLE>
 	r.Get("/on-this-day/events", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := app.LoggerFromContext(ctx)
@@ -150,6 +151,7 @@ func main() {
 				Extract:     mainPage.Extract,
 				URL:         mainPage.ContentUrls.Desktop.Page,
 				References:  references,
+				Year:        ev.Year,
 			})
 		}
 		b, err := json.Marshal(resp)

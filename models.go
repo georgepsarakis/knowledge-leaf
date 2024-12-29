@@ -32,6 +32,7 @@ type OnThisDayEvent struct {
 	Extract     string                    `json:"extract"`
 	URL         string                    `json:"url"`
 	References  []OnThisDayEventReference `json:"references"`
+	Year        int                       `json:"year"`
 }
 
 type OnThisDayEventReference struct {
