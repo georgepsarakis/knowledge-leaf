@@ -2,13 +2,10 @@ import {
     Image,
     Container,
     Heading,
-    HStack,
     Link,
     LinkBox,
     LinkOverlay,
     Flex,
-    Float,
-    Box,
     Separator
 } from "@chakra-ui/react"
 

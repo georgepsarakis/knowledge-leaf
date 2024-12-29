@@ -13,7 +13,7 @@ import {AiOutlineArrowLeft, AiOutlineArrowRight} from "react-icons/ai";
 import Layout from "./Layout";
 import {LuExternalLink} from "react-icons/lu";
 
-type Image = {
+type ArticleImage = {
     url: string;
     height: number;
     width: number;
@@ -22,9 +22,10 @@ type Image = {
 type OnThisDayEvent = {
     description: string;
     title: string;
+    year: number;
     short_title: string;
     extract: string;
-    image: Image;
+    image: ArticleImage;
     url: string;
     references: OnThisDayEventReference[];
 }
@@ -81,16 +82,22 @@ function EventsOnThisDay() {
                                         }}
                                         slidesPerView={1}>
                                         {
-
                                             data!.titles.map((t) => {
-                                                return <SwiperSlide>
+                                                const key = t.url + "-" + t.year.toString();
+                                                const dt = new Date();
+                                                dt.setFullYear(t.year);
+                                                const displayDate = dt.toLocaleDateString(
+                                                    undefined,
+                                                    {month: 'long', year: "numeric", day: "numeric"});
+                                                const displayTitle = `${displayDate}: ${t.title}`;
+                                                return <SwiperSlide key={t.url}>
                                                     <Box p="4"
                                                          borderWidth="1px"
                                                          borderColor="border.disabled"
                                                          color="fg.disabled" margin={30}>
                                                     <Event
-                                                        key={t.title}
-                                                        title={t.title}
+                                                        key={key}
+                                                        title={displayTitle}
                                                         extract={t.extract}
                                                         image={t.image}
                                                         short_title={t.short_title}
@@ -116,28 +123,29 @@ function EventsOnThisDay() {
 type EventProps = {
     title: string;
     extract: string;
-    image: Image;
+    image: ArticleImage;
     short_title: string;
     description: string;
     url: string;
     references: OnThisDayEventReference[];
 }
 
-function Event({ title, extract, image, description, short_title, url, references }: EventProps) {
+function Event(props: EventProps) {
+    const image = props.image;
     return <Container maxW={"2xl"}>
-             <Heading size={"lg"} marginBottom={5}>{title}</Heading>
+             <Heading size={"lg"} marginBottom={5}>{props.title}</Heading>
              <Center>
                 <Image src={image.url}
                        width={image.width}
                        height={image.height}
                        transition={"0.5s linear"} />
              </Center>
-             <Text marginTop={5} marginBottom={5}>{extract}</Text>
-             <Link target={"_blank"} href={url}>
-                <Text color={"teal"}>{short_title} - {description}</Text>
+             <Text marginTop={5} marginBottom={5}>{props.extract}</Text>
+             <Link target={"_blank"} href={props.url}>
+                <Text color={"teal"}>{props.short_title} - {props.description}</Text>
                  <LuExternalLink color={"teal"}/>
              </Link>
-             <RenderReferences items={references}/>
+             <RenderReferences items={props.references}/>
            </Container>;
 }
 
@@ -153,7 +161,7 @@ function RenderReferences({ items }: ReferencesProps) {
         <Heading size={"md"} marginBottom={2}>References</Heading>
         <ListRoot>
             {items.map((ref) =>
-                <ListItem>
+                <ListItem key={ref.url}>
                     <Link target={"_blank"} href={ref.url}>
                         <Text color={"teal"}>{ref.title}</Text><LuExternalLink color={"teal"}/>
                     </Link>

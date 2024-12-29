@@ -19,7 +19,6 @@ import { useState, useEffect } from 'react';
 import {HiAcademicCap} from "react-icons/hi2";
 import {BiBarChart} from "react-icons/bi";
 
-import {parse} from 'tldts';
 import {Tag} from "./components/ui/tag";
 import Layout from "./Layout";
 import {getDomain} from "./backend/backend";
