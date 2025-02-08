@@ -14,6 +14,7 @@ import {AiOutlineArrowLeft, AiOutlineArrowRight} from "react-icons/ai";
 import Layout from "./Layout";
 import { LuExternalLink } from "react-icons/lu";
 import { ClipboardIconButton, ClipboardRoot } from "./components/ui/clipboard";
+import {Tooltip} from "./components/ui/tooltip";
 
 
 
@@ -46,7 +47,9 @@ type OnThisDayEventsResponse = {
 
 function AppLinkURL(props: {url: string}) {
     return  <ClipboardRoot value={props.url}>
-                <ClipboardIconButton />
+                <Tooltip content={props.url}>
+                        <ClipboardIconButton />
+                </Tooltip>
             </ClipboardRoot>
 }
 
@@ -130,7 +133,7 @@ function EventsOnThisDay() {
                                                             description={t.description}
                                                             url={t.url}
                                                             references={t.references}
-                                                            app_link_url={window.location.host + t.app_link_url}
+                                                            app_link_url={window.location.protocol + "//" + window.location.host + t.app_link_url}
                                                         />
                                                         </Box>
                                                     </SwiperSlide>
@@ -169,7 +172,7 @@ function Event(props: EventProps) {
                  {props.title}
                  <Float placement={"middle-start"}>
                      <Box paddingRight={50}>
-                        <AppLinkURL url={props.app_link_url}/>
+                        <AppLinkURL url={props.app_link_url} />
                      </Box>
                  </Float>
              </Heading>
