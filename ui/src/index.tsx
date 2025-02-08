@@ -14,6 +14,7 @@ root.render(
           <Routes>
               <Route path="/" element={<App />} />
               <Route path="/on-this-day/events" element={<EventsOnThisDay/>} />
+              <Route path={"/on-this-day/events/:date/:title"} element={<EventsOnThisDay/>} />
           </Routes>
       </BrowserRouter>
   </React.StrictMode>
