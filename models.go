@@ -33,6 +33,8 @@ type OnThisDayEvent struct {
 	URL         string                    `json:"url"`
 	References  []OnThisDayEventReference `json:"references"`
 	Year        int                       `json:"year"`
+	// AppLinkURL is the permalink in Knowledge Leaf
+	AppLinkURL string `json:"app_link_url"`
 }
 
 type OnThisDayEventReference struct {

@@ -158,9 +158,8 @@ type TitleCategoriesResponse struct {
 	} `json:"query"`
 }
 
-func (c Client) OnThisDay(ctx context.Context) (RestV1EventsOnThisDayResponse, error) {
-	now := time.Now().UTC()
-	resp, err := c.httpClient.Get(ctx, fmt.Sprintf(restV1OnThisDayEndpoint, "events", now.Format("01"), now.Format("02")))
+func (c Client) OnThisDay(ctx context.Context, date time.Time) (RestV1EventsOnThisDayResponse, error) {
+	resp, err := c.httpClient.Get(ctx, fmt.Sprintf(restV1OnThisDayEndpoint, "events", date.Format("01"), date.Format("02")))
 	if err != nil {
 		return RestV1EventsOnThisDayResponse{}, err
 	}

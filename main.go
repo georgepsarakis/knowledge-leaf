@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -109,7 +111,101 @@ func main() {
 	r.Get("/trivia/stats", func(w http.ResponseWriter, r *http.Request) {
 		// TODO: return total database size count & views
 	})
-	// TODO: introduce permalinks -> /on-this-day/event/<YYYY-MM-DD>/<TITLE>
+	r.Get("/on-this-day/events/{date}/{title}", func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := app.LoggerFromContext(ctx)
+		cc := chi.RouteContext(ctx)
+		params := struct {
+			date  string
+			title string
+		}{
+			date:  chi.URLParam(r, "date"),
+			title: chi.URLParam(r, "title"),
+		}
+		dt, err := time.Parse(time.DateOnly, params.date)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		loggerFields := []zap.Field{
+			zap.String("requestID", middleware.GetReqID(ctx)),
+			zap.String("httpMethod", http.MethodGet),
+			zap.String("operation", cc.RoutePattern()),
+		}
+		logger = logger.With(loggerFields...)
+
+		client := wikipedia.NewClient()
+		events, err := client.OnThisDay(ctx, dt)
+		if err != nil {
+			logger.Error(err.Error(), zap.Error(err))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+		var resp EventsOnThisDayResponse
+		for _, ev := range events.Events {
+			if ev.Year != dt.Year() {
+				continue
+			}
+			mainPage := ev.Pages[0]
+			parsedContentURL, err := url.Parse(mainPage.ContentUrls.Desktop.Page)
+			if err != nil {
+				logger.Error(err.Error(), zap.Error(err))
+				http.Error(w, "request failed", http.StatusInternalServerError)
+				return
+			}
+			parsedURL := strings.Split(parsedContentURL.Path, "/")
+			urlTitle := parsedURL[len(parsedURL)-1]
+			if urlTitle != params.title {
+				continue
+			}
+			var references []OnThisDayEventReference
+			if len(ev.Pages) > 1 {
+				for _, p := range ev.Pages[1:] {
+					references = append(references, OnThisDayEventReference{
+						Title: p.Title,
+						URL:   p.ContentUrls.Desktop.Page,
+					})
+				}
+			}
+			appLink, err := appLinkURL(dt, mainPage.ContentUrls.Desktop.Page)
+			if err != nil {
+				logger.Error(err.Error(), zap.Error(err))
+				http.Error(w, "request failed", http.StatusInternalServerError)
+				return
+			}
+			resp.Titles = append(resp.Titles, OnThisDayEvent{
+				Title:      ev.Text,
+				ShortTitle: mainPage.Titles.Normalized,
+				Image: Image{
+					URL:    mainPage.Thumbnail.Source,
+					Width:  mainPage.Thumbnail.Width,
+					Height: mainPage.Thumbnail.Height,
+				},
+				Description: mainPage.Description,
+				Extract:     mainPage.Extract,
+				URL:         mainPage.ContentUrls.Desktop.Page,
+				References:  references,
+				Year:        ev.Year,
+				AppLinkURL:  appLink,
+			})
+		}
+		b, err := json.Marshal(resp)
+		if err != nil {
+			logger.Error(err.Error(),
+				zap.Error(err),
+				zap.String("operationDetail", "jsonMarshal"))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+		if _, err := w.Write(b); err != nil {
+			logger.Error(err.Error(),
+				zap.Error(err),
+				zap.String("operationDetail", "responseWrite"))
+			http.Error(w, "request failed", http.StatusInternalServerError)
+			return
+		}
+	})
 	r.Get("/on-this-day/events", func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := app.LoggerFromContext(ctx)
@@ -121,7 +217,8 @@ func main() {
 		logger = logger.With(loggerFields...)
 
 		client := wikipedia.NewClient()
-		events, err := client.OnThisDay(ctx)
+		now := time.Now().UTC()
+		events, err := client.OnThisDay(ctx, now)
 		if err != nil {
 			logger.Error(err.Error(), zap.Error(err))
 			http.Error(w, "request failed", http.StatusInternalServerError)
@@ -139,6 +236,18 @@ func main() {
 					})
 				}
 			}
+			eventDate, err := time.Parse(time.DateOnly, fmt.Sprintf("%04d-%s", ev.Year, now.Format("01-02")))
+			if err != nil {
+				logger.Error(err.Error(), zap.Error(err))
+				http.Error(w, "request failed", http.StatusInternalServerError)
+				return
+			}
+			appLink, err := appLinkURL(eventDate, mainPage.ContentUrls.Desktop.Page)
+			if err != nil {
+				logger.Error(err.Error(), zap.Error(err))
+				http.Error(w, "request failed", http.StatusInternalServerError)
+				return
+			}
 			resp.Titles = append(resp.Titles, OnThisDayEvent{
 				Title:      ev.Text,
 				ShortTitle: mainPage.Titles.Normalized,
@@ -152,6 +261,7 @@ func main() {
 				URL:         mainPage.ContentUrls.Desktop.Page,
 				References:  references,
 				Year:        ev.Year,
+				AppLinkURL:  appLink,
 			})
 		}
 		b, err := json.Marshal(resp)
@@ -175,4 +285,18 @@ func main() {
 		application.Logger.Error(err.Error())
 		os.Exit(1)
 	}
+}
+
+func appLinkURL(dt time.Time, articleURL string) (string, error) {
+	parsedContentURL, err := url.Parse(articleURL)
+	if err != nil {
+		return "", err
+	}
+	parsedURL := strings.Split(parsedContentURL.Path, "/")
+	urlTitle := parsedURL[len(parsedURL)-1]
+	appLink, err := url.JoinPath("/on-this-day/events/", dt.Format(time.DateOnly), urlTitle)
+	if err != nil {
+		return "", err
+	}
+	return appLink, nil
 }
