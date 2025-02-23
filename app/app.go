@@ -10,10 +10,11 @@ import (
 )
 
 type Configuration struct {
-	Port           int      `env:"PORT,default=4000"`
-	AllowedOrigins []string `env:"ALLOWED_ORIGINS,default=http://localhost"`
-	RedisDSN       string   `env:"REDIS_DSN,default=redis://localhost:6379"`
-	UseRedis       bool     `env:"USE_REDIS,default=false"`
+	Port           int           `env:"PORT,default=4000"`
+	AllowedOrigins []string      `env:"ALLOWED_ORIGINS,default=http://localhost"`
+	RedisDSN       string        `env:"REDIS_DSN,default=redis://localhost:6379"`
+	UseRedis       bool          `env:"USE_REDIS,default=false"`
+	RequestTimeout time.Duration `env:"REQUEST_TIMEOUT,default=30s"`
 }
 
 type App struct {

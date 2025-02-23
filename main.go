@@ -46,6 +46,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
+	r.Use(middleware.Timeout(application.Cfg.RequestTimeout))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   application.Cfg.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -281,7 +282,13 @@ func main() {
 		}
 	})
 
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", application.Cfg.Port), r); err != nil {
+	srv := http.Server{
+		Addr:         fmt.Sprintf(":%d", application.Cfg.Port),
+		ReadTimeout:  2 * time.Second,
+		WriteTimeout: application.Cfg.RequestTimeout,
+		Handler:      r,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		application.Logger.Error(err.Error())
 		os.Exit(1)
 	}
