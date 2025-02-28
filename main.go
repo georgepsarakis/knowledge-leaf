@@ -123,10 +123,19 @@ func main() {
 			date:  chi.URLParam(r, "date"),
 			title: chi.URLParam(r, "title"),
 		}
-		dt, err := time.Parse(time.DateOnly, params.date)
+
+		hasNegativeYear := strings.HasPrefix(params.date, "-")
+		dateParam := params.date
+		if hasNegativeYear {
+			dateParam = strings.TrimPrefix(dateParam, "-")
+		}
+		dt, err := time.Parse(time.DateOnly, dateParam)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+		if hasNegativeYear {
+			dt = dt.AddDate(-2*dt.Year(), 0, 0)
 		}
 
 		loggerFields := []zap.Field{
@@ -237,11 +246,19 @@ func main() {
 					})
 				}
 			}
+			hasNegativeYear := ev.Year < 0
+			displayYear := ev.Year
+			if hasNegativeYear {
+				ev.Year *= -1
+			}
 			eventDate, err := time.Parse(time.DateOnly, fmt.Sprintf("%04d-%s", ev.Year, now.Format("01-02")))
 			if err != nil {
 				logger.Error(err.Error(), zap.Error(err))
 				http.Error(w, "request failed", http.StatusInternalServerError)
 				return
+			}
+			if hasNegativeYear {
+				eventDate = eventDate.AddDate(-2*ev.Year, 0, 0)
 			}
 			appLink, err := appLinkURL(eventDate, mainPage.ContentUrls.Desktop.Page)
 			if err != nil {
@@ -261,7 +278,7 @@ func main() {
 				Extract:     mainPage.Extract,
 				URL:         mainPage.ContentUrls.Desktop.Page,
 				References:  references,
-				Year:        ev.Year,
+				Year:        displayYear,
 				AppLinkURL:  appLink,
 			})
 		}
