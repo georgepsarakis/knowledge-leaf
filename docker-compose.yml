@@ -1,7 +1,15 @@
-version: '3.9'
 services:
   redis:
     image: redis
     restart: always
     ports:
-      - 6379:6379
+      - "6379:6379"
+  postgres:
+    image: postgres
+    restart: always
+    shm_size: 128mb
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: "knowledge_leaf"
+      POSTGRES_DB: "knowledge_leaf"
