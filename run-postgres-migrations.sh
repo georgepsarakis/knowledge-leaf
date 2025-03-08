@@ -31,5 +31,13 @@ compose_postgres_dsn() {
   echo "$dsn"
 }
 
-migrate -database "$(compose_postgres_dsn)" -source 'file://migrations/postgres' up
+if type -P migrate >/dev/null 2>&1; then
+  echo 'migrate executable found'
+else
+  echo 'installing migrate CLI via Go toolchain'
+  go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+fi
+
+export GOBIN="$(go env GOPATH)/bin"
+$GOBIN/migrate -database "$(compose_postgres_dsn)" -source 'file://migrations/postgres' up
 
