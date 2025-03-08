@@ -10,8 +10,10 @@ import (
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm/clause"
 
 	"knowledgeleaf/app"
+	"knowledgeleaf/database"
 	"knowledgeleaf/externalapi/wikipedia"
 )
 
@@ -48,6 +50,10 @@ func NewRandomTriviaBackend(application app.App) *RandomTriviaBackend {
 }
 
 func (b *RandomTriviaBackend) RandomTitle(ctx context.Context) (string, error) {
+	if b.application.Cfg.PostgresEnabled {
+		return fetchRandomArticleTitle(ctx, b)
+	}
+
 	if !b.application.Cfg.UseRedis {
 		if b.titleCount == 0 {
 			b.titleCount = len(wikipediaArticleTitles)
@@ -128,4 +134,24 @@ func randomizeArticle(ctx context.Context, triviaBackend *RandomTriviaBackend) (
 		},
 	)
 	return summaries, nil
+}
+
+const numericIDSequence = "wikipedia_titles_numeric_id_seq"
+
+func fetchRandomArticleTitle(ctx context.Context, triviaBackend *RandomTriviaBackend) (string, error) {
+	tx := triviaBackend.application.PostgresConnection.WithContext(ctx)
+	var n int64
+	err := tx.Raw(fmt.Sprintf("SELECT LAST_VALUE FROM %s", numericIDSequence)).Scan(&n).Error
+	if err != nil {
+		return "", err
+	}
+	bucket := rand.Intn(int(n)) + 1
+	title := database.WikipediaTitle{}
+	err = tx.Clauses(clause.OrderBy{
+		Expression: clause.Expr{SQL: "RANDOM()"},
+	}).First(&title, "numeric_id = ?", bucket).Error
+	if err != nil {
+		return "", err
+	}
+	return title.Title, nil
 }
