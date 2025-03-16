@@ -1,20 +1,17 @@
 package main
 
 import (
-	"bufio"
-	"compress/gzip"
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
-	"time"
 
-	"github.com/georgepsarakis/go-httpclient"
 	"go.uber.org/zap"
 
 	"knowledgeleaf/app"
+	"knowledgeleaf/externalapi/wikipedia"
 )
-
-const wikipediaDumpURL = "https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz"
 
 func main() {
 	application, cleanup, err := app.New()
@@ -29,24 +26,17 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), application.Cfg.ScheduledLoaderTimeout)
 	defer cancel()
-	application.Logger.Info(fmt.Sprintf("fetching data from %s", wikipediaDumpURL))
-	httpClient := httpclient.New().WithTimeout(5 * time.Minute)
-	resp, err := httpClient.Get(ctx, wikipediaDumpURL)
+	application.Logger.Info("fetching data from wikipedia")
+	scanner, onComplete, err := wikipedia.DownloadArticleDump(ctx)
 	if err != nil {
 		application.Logger.Fatal("wikipedia request failed", zap.Error(err))
 	}
-	defer resp.Body.Close()
-	gz, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		application.Logger.Fatal("wikipedia request failed", zap.Error(err))
-	}
-	scanner := bufio.NewScanner(gz)
 
 	articleTitles := make(map[string]struct{}, 1_000_000)
 	var index int
 	for scanner.Scan() {
-		title := normalizeTitle(scanner.Text())
-		if len(title) > 30 || len(title) < 3 || strings.HasPrefix(title, "!") {
+		title, ok := normalizeTitle(scanner.Text())
+		if !ok {
 			continue
 		}
 		index++
@@ -57,37 +47,29 @@ func main() {
 		articleTitles[title] = struct{}{}
 	}
 	if err := scanner.Err(); err != nil {
-		application.Logger.Fatal("error reading file:", zap.Error(err))
+		application.Logger.Fatal("error reading file", zap.Error(err))
 	}
-	var batch []string
-	batchSize := 1000
-	index = 0
-
+	if err := onComplete(); err != nil {
+		application.Logger.Fatal("error completing Wikipedia dump request", zap.Error(err))
+	}
 	application.Logger.Info(
 		"wikipedia article dump retrieval completed",
 		zap.Int("total_titles", len(articleTitles)))
 
-	for t := range articleTitles {
-		batch = append(batch, t)
-		index++
-		if len(batch) >= batchSize {
-			if err := application.Repository.BulkCreate(ctx, batch); err != nil {
-				application.Logger.Fatal("persisting batch failed", zap.Error(err))
-			}
-			batch = batch[:0]
+	allTitles := slices.Collect(maps.Keys(articleTitles))
+	for batch := range slices.Chunk(allTitles, 1000) {
+		index += len(batch)
+		if err := application.Repository.BulkCreate(ctx, batch); err != nil {
+			application.Logger.Fatal("persisting batch failed", zap.Error(err))
 		}
+		application.Logger.Info(fmt.Sprintf("created %d entries", index))
 
-		if index%1000 == 0 {
-			application.Logger.Info(fmt.Sprintf("created %d entries", index))
-		}
-	}
-	if err := application.Repository.BulkCreate(ctx, batch); err != nil {
-		application.Logger.Fatal("persisting batch failed", zap.Error(err))
 	}
 }
 
-func normalizeTitle(s string) string {
+func normalizeTitle(s string) (string, bool) {
 	s = strings.TrimSpace(s)
 	s = strings.ReplaceAll(s, `"`, "")
-	return s
+	isInvalid := len(s) > 30 || len(s) < 3 || strings.HasPrefix(s, "!")
+	return s, !isInvalid
 }

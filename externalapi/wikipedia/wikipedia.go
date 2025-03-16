@@ -1,6 +1,8 @@
 package wikipedia
 
 import (
+	"bufio"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
@@ -205,4 +207,23 @@ type RestV1EventsOnThisDayResponse struct {
 			} `json:"content_urls"`
 		} `json:"pages"`
 	} `json:"events"`
+}
+
+const wikipediaDumpURL = "https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-all-titles-in-ns0.gz"
+
+func noopCleanupFunc() error {
+	return nil
+}
+
+func DownloadArticleDump(ctx context.Context) (*bufio.Scanner, func() error, error) {
+	httpClient := httpclient.New().WithTimeout(5 * time.Minute)
+	resp, err := httpClient.Get(ctx, wikipediaDumpURL)
+	if err != nil {
+		return nil, noopCleanupFunc, err
+	}
+	gz, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return nil, resp.Body.Close, err
+	}
+	return bufio.NewScanner(gz), resp.Body.Close, nil
 }
