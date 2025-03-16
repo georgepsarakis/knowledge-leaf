@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/georgepsarakis/go-httpclient"
 	"go.uber.org/zap"
@@ -28,7 +29,8 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), application.Cfg.ScheduledLoaderTimeout)
 	defer cancel()
-	httpClient := httpclient.New()
+	application.Logger.Info(fmt.Sprintf("fetching data from %s", wikipediaDumpURL))
+	httpClient := httpclient.New().WithTimeout(5 * time.Minute)
 	resp, err := httpClient.Get(ctx, wikipediaDumpURL)
 	if err != nil {
 		application.Logger.Fatal("wikipedia request failed", zap.Error(err))
@@ -60,6 +62,10 @@ func main() {
 	var batch []string
 	batchSize := 1000
 	index = 0
+
+	application.Logger.Info(
+		"wikipedia article dump retrieval completed",
+		zap.Int("total_titles", len(articleTitles)))
 
 	for t := range articleTitles {
 		batch = append(batch, t)
