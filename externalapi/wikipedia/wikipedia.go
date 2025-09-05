@@ -65,7 +65,7 @@ type RestV1SummaryResponse struct {
 	ExtractHTML string `json:"extract_html"`
 }
 
-const userAgent = "knowledge-leaf-client/1.0"
+const userAgent = "KnowledgeLeafBot/1.0 (https://knowledge-leaf.com)"
 
 // URL endpoints
 const restV1SummaryEndpoint = "https://en.wikipedia.org/api/rest_v1/page/summary"
@@ -96,7 +96,7 @@ func NewClient() *Client {
 		"User-Agent":   userAgent,
 	})
 	return &Client{
-		httpClient: httpclient.New(),
+		httpClient: c,
 	}
 }
 
