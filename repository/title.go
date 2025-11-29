@@ -54,10 +54,15 @@ func (p postgresRepository) BulkCreate(ctx context.Context, titles []string) err
 	if diff <= 50 {
 		b, err := p.CurrentBucketValue(ctx)
 		if err != nil {
-			return err
+			var pgErr *pgconn.PgError
+			if !errors.As(err, &pgErr) || pgErr.Code != pgerrcode.ObjectNotInPrerequisiteState {
+				return err
+			}
+		} else {
+			bucketID = b
 		}
-		bucketID = b
-	} else {
+	}
+	if bucketID == 0 {
 		b, err := p.NextBucketValue(ctx)
 		if err != nil {
 			return err
