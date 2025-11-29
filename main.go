@@ -124,6 +124,8 @@ func main() {
 			title: chi.URLParam(r, "title"),
 		}
 
+		params.title, _ = url.PathUnescape(params.title)
+
 		hasNegativeYear := strings.HasPrefix(params.date, "-")
 		dateParam := params.date
 		if hasNegativeYear {
