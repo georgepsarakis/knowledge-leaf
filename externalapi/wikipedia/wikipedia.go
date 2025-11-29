@@ -6,8 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -221,9 +223,29 @@ func DownloadArticleDump(ctx context.Context) (*bufio.Scanner, func() error, err
 	if err != nil {
 		return nil, noopCleanupFunc, err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	gz, err := gzip.NewReader(resp.Body)
 	if err != nil {
 		return nil, resp.Body.Close, err
 	}
-	return bufio.NewScanner(gz), resp.Body.Close, nil
+	tempFile, err := os.CreateTemp("", "download-*.tmp")
+	if err != nil {
+		return nil, noopCleanupFunc, fmt.Errorf("error creating temporary file: %w", err)
+	}
+	defer func() {
+		_ = tempFile.Close()
+	}()
+	if _, err := io.Copy(tempFile, gz); err != nil {
+		return nil, noopCleanupFunc, fmt.Errorf("error writing temporary file: %w", err)
+	}
+	f, err := os.Open(tempFile.Name())
+	if err != nil {
+		return nil, noopCleanupFunc, fmt.Errorf("error opening temporary file: %w", err)
+	}
+	return bufio.NewScanner(f), func() error {
+		_ = f.Close()
+		return os.Remove(f.Name())
+	}, nil
 }
